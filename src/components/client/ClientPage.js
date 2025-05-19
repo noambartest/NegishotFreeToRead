@@ -9,7 +9,9 @@ export default function MenuReader() {
   const [currentStage, setCurrentStage] = useState("idle");
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedDishes, setSelectedDishes] = useState([]);
+  const [sessionKey, setSessionKey] = useState(0);
   const isSpeaking = useRef(false);
+  const didSpeakRef = useRef(false);
 
   const speak = (text) =>
     new Promise((resolve) => {
@@ -35,13 +37,15 @@ export default function MenuReader() {
 
   useEffect(() => {
     if (currentStage !== "categories" || !categories.length) return;
+    if (didSpeakRef.current) return;
+    didSpeakRef.current = true;
     (async () => {
       await speak("Welcome to the menu. Please choose a category.");
       for (let i = 0; i < categories.length; i++) {
         await speak(`Press ${i + 1} for ${categories[i]}.`);
       }
     })();
-  }, [categories, currentStage]);
+  }, [categories, currentStage, sessionKey]);
 
   useEffect(() => {
     if (currentStage !== "dishes" || !selectedCategory) return;
@@ -59,6 +63,8 @@ export default function MenuReader() {
     const onKeyDown = async (e) => {
       if (isSpeaking.current) return;
       if (e.code === "Space") {
+        didSpeakRef.current = false;
+        setSessionKey((prev) => prev + 1);
         setCurrentStage("categories");
         setSelectedCategory(null);
         setSelectedDishes([]);
@@ -73,6 +79,7 @@ export default function MenuReader() {
         }
       } else if (currentStage === "dishes") {
         if (key === "0") {
+          didSpeakRef.current = false;
           setCurrentStage("categories");
           setSelectedCategory(null);
           return;
@@ -107,18 +114,11 @@ export default function MenuReader() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [
-    categories,
-    dishes,
-    currentStage,
-    selectedCategory,
-    selectedDishes,
-  ]);
+  }, [categories, dishes, currentStage, selectedCategory, selectedDishes]);
 
   return (
     <div className="menu-reader">
       <h2>Menu Reader</h2>
-
       {currentStage === "done" ? (
         <>
           <p className="info">Your order is on its way to the kitchen.</p>
@@ -132,7 +132,7 @@ export default function MenuReader() {
           {selectedCategory && (
             <p className="info">Category: {selectedCategory}</p>
           )}
-          {selectedDishes.length > 0 && (
+          {selectedDishes.length > 0 ? (
             <div className="orders">
               <h3>Your choices:</h3>
               <ul>
@@ -142,8 +142,7 @@ export default function MenuReader() {
               </ul>
               <p className="info">Press Enter to confirm, or Space to restart.</p>
             </div>
-          )}
-          {!selectedDishes.length && (
+          ) : (
             <p className="info">Press Space at any time to restart.</p>
           )}
         </>
